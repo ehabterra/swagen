@@ -269,40 +269,21 @@ func NewTrackerTree(meta *metadata.Metadata, limits metadata.TrackerLimits) *Tra
 		}
 	}
 
-	// Search for assignments
-	for i := range meta.CallGraph {
-		edge := &meta.CallGraph[i]
+	// Get pre-built relationships from metadata
+	variableRelationships := meta.GetVariableRelationships()
 
-		calleeName := getString(meta, edge.Callee.Name)
-
-		// t.variableRelationships = meta.GetVariableRelationships()
-
-		for param, arg := range edge.ParamArgMap {
-			// Enhanced variable tracing and assignment linking
-			_, _, originArg, _ := metadata.TraceVariableOrigin(
-				param,
-				getString(meta, edge.Callee.Name),
-				getString(meta, edge.Callee.Pkg),
-				meta,
-			)
-
-			pkey := paramKey{
-				Name:      param,
-				Pkg:       getString(meta, edge.Callee.Pkg),
-				Container: calleeName,
-			}
-
-			if originArg == nil {
-				continue
-			}
-
-			t.variableNodes[pkey] = &TrackerNode{
-				key:           originArg.ID(),
-				CallGraphEdge: edge,
-				CallArgument:  &arg,
-			}
+	for _, variable := range variableRelationships {
+		pkey := paramKey{
+			Name:      variable.ParamKey.Name,
+			Pkg:       variable.ParamKey.Pkg,
+			Container: variable.ParamKey.Container,
 		}
 
+		t.variableNodes[pkey] = &TrackerNode{
+			key:           variable.ParamKey.Name,
+			CallGraphEdge: variable.Edge,
+			CallArgument:  variable.Argument,
+		}
 	}
 
 	// Search for root functions

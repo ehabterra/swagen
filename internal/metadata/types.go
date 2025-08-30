@@ -707,6 +707,8 @@ func (a *CallArgument) id(sep string) (string, string) {
 			return id, typeParam
 		}
 		return a.Sel.GetName(), typeParam
+	case KindFuncType:
+		return a.GetValue(), typeParam
 	case KindCall:
 		if a.Fun != nil {
 			funID, funTypeParam := a.Fun.id(".")

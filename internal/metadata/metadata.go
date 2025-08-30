@@ -1384,12 +1384,13 @@ func astFileFromFn(pkgName, fnName string, pkgs map[string]map[string]*ast.File,
 				astFile = pkgs[pkgName][fileName]
 				break
 			}
+
 			for _, t := range f.Types {
 				for _, method := range t.Methods {
 					methodName := metadata.StringPool.GetString(method.Name)
 					if methodName == fnName {
 						astFile = pkgs[pkgName][metadata.StringPool.GetString(method.Filename)]
-						break
+						return astFile
 					}
 				}
 			}
