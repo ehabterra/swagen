@@ -30,11 +30,6 @@ func (t *TypeResolverImpl) ResolveType(arg metadata.CallArgument, context Tracke
 		return t.resolveTypeFromArgument(arg)
 	}
 
-	// Check if the underlying value is nil using type assertion
-	if node, ok := context.(*SimplifiedTrackerNode); ok && node == nil {
-		return t.resolveTypeFromArgument(arg)
-	}
-
 	// Check if the edge is nil
 	if context.GetEdge() == nil {
 		return t.resolveTypeFromArgument(arg)

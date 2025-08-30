@@ -164,7 +164,8 @@ func (nd *TrackerNode) GetRootAssignmentMap() map[string][]metadata.Assignment {
 
 func (nd *TrackerNode) AddChild(child *TrackerNode) {
 	nd.Children = append(nd.Children, child)
-	if child.Parent != nil && child.Parent.Key() != nd.Key() {
+	key := nd.Key()
+	if child.Parent != nil && child.Parent.Key() != key {
 		detachChild(child)
 	}
 	child.Parent = nd
@@ -173,8 +174,9 @@ func (nd *TrackerNode) AddChild(child *TrackerNode) {
 func (nd *TrackerNode) AddChildren(children []*TrackerNode) {
 	nd.Children = append(nd.Children, children...)
 	for _, child := range children {
+		key := nd.Key()
 		if child.Parent != nil {
-			if child.Parent.Key() != nd.Key() {
+			if child.Parent.Key() != key {
 				detachChild(child)
 			}
 		}
@@ -244,34 +246,34 @@ func NewTrackerTree(meta *metadata.Metadata, limits metadata.TrackerLimits) *Tra
 	// Get pre-built relationships from metadata
 	assignmentRelationships := meta.GetAssignmentRelationships()
 
+	for _, assignment := range assignmentRelationships {
+		recvVarName := getString(meta, assignment.Assignment.VariableName)
+
+		akey := assignmentKey{
+			Name:      recvVarName,
+			Pkg:       getString(meta, assignment.Assignment.Pkg),
+			Type:      getString(meta, assignment.Assignment.ConcreteType),
+			Container: getString(meta, assignment.Assignment.Func),
+		}
+
+		switch assignment.Assignment.Lhs.GetKind() {
+		case metadata.KindSelector:
+			if assignment.Assignment.Lhs.X != nil && assignment.Assignment.Lhs.X.Type != -1 {
+				akey.Container = assignment.Assignment.Lhs.X.GetType()
+			}
+		}
+
+		assignmentIndex[akey] = &TrackerNode{
+			key:           assignment.Edge.Callee.ID(),
+			CallGraphEdge: assignment.Edge,
+		}
+	}
+
 	// Search for assignments
 	for i := range meta.CallGraph {
 		edge := &meta.CallGraph[i]
 
 		calleeName := getString(meta, edge.Callee.Name)
-
-		for _, assignment := range assignmentRelationships {
-			recvVarName := getString(meta, assignment.Assignment.VariableName)
-
-			akey := assignmentKey{
-				Name:      recvVarName,
-				Pkg:       getString(meta, assignment.Assignment.Pkg),
-				Type:      getString(meta, assignment.Assignment.ConcreteType),
-				Container: getString(meta, assignment.Assignment.Func),
-			}
-
-			switch assignment.Assignment.Lhs.GetKind() {
-			case metadata.KindSelector:
-				if assignment.Assignment.Lhs.X != nil && assignment.Assignment.Lhs.X.Type != -1 {
-					akey.Container = assignment.Assignment.Lhs.X.GetType()
-				}
-			}
-
-			assignmentIndex[akey] = &TrackerNode{
-				key:           assignment.Edge.Callee.ID(),
-				CallGraphEdge: assignment.Edge,
-			}
-		}
 
 		// t.variableRelationships = meta.GetVariableRelationships()
 
@@ -619,7 +621,8 @@ func processArguments(tree *TrackerTree, meta *metadata.Metadata, parentNode *Tr
 					funcNameIndex := arg.Sel.Name
 					recvType := strings.ReplaceAll(originVar, arg.Sel.GetPkg()+".", "")
 					// If the selector is a method, we need to get the type of the receiver
-					if arg.Sel.Type != -1 {
+					if arg.Sel.Type != -1 && varName == originVar {
+						// if arg.Sel.Type != -1 && recvType == "" {
 						recvType = arg.X.GetType()
 						recvType = strings.ReplaceAll(recvType, arg.Sel.GetPkg()+".", "")
 					}
